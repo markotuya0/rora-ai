@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/markotuya0/rora-ai2/actions/workflows/ci.yml/badge.svg)](https://github.com/markotuya0/rora-ai2/actions)
 
-> **Ask questions in plain English. Get SQL. Get answers.**
+> **Ask questions in plain English. Get SQL. Get answers. Includes a structured validation pipeline and benchmark regression suite — every LLM output is schema-validated and tested against  queries before deployment.**
 
 Rora AI is full-stack AI system that transforms natural language into SQL queries using a fully local LLM stack. No external API costs. No data privacy concerns. One-command deployment.
 
