@@ -18,7 +18,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="stylesheet" href={FONT_CSS} />
+        {/* Loaded without blocking paint: media="print" until it arrives, so an unreachable font host cannot blank the page. */}
+        <link rel="stylesheet" href={FONT_CSS} media="print" data-font-css="" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "document.querySelector('link[data-font-css]').addEventListener('load',function(e){e.target.media='all'});",
+          }}
+        />
       </head>
       <body className="min-h-screen antialiased">
         <Providers>{children}</Providers>
