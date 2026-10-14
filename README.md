@@ -19,19 +19,35 @@ Rora AI is a full-stack Text-to-SQL app. It runs a local language model through 
 
 ## Contents
 
+- [Why Rora AI](#why-rora-ai)
 - [What it does](#what-it-does)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
 - [Screenshots](#screenshots)
 - [Quick start](#quick-start)
 - [Using the dashboard](#using-the-dashboard)
 - [Using your own data](#using-your-own-data)
 - [Configuration](#configuration)
 - [API](#api)
+- [Security](#security)
+- [Example questions](#example-questions)
 - [Editing the project](#editing-the-project)
 - [Testing](#testing)
 - [Compatibility and limits](#compatibility-and-limits)
 - [Project structure](#project-structure)
 - [Roadmap](#roadmap)
 - [Author and license](#author-and-license)
+
+---
+
+## Why Rora AI
+
+Most Text-to-SQL tools send your data to an external API, which exposes sensitive information and adds a per-query cost. Rora AI runs its model locally with [Ollama](https://ollama.com), so:
+
+- **No API costs.** Everything runs on your machine.
+- **Data stays local.** Questions and results never leave your infrastructure.
+- **Answers are checked before they run.** SQL is validated, restricted to read-only `SELECT`s, and limited to tables in your schema.
+- **Every answer is explained.** Telemetry records how the SQL was produced, and the dashboard shows each step.
 
 ---
 
@@ -53,6 +69,67 @@ Other features:
 - **Approval flow** for suggested actions (email drafts, tags, follow-up triggers). Nothing runs until you approve it.
 - **Keyboard-first dashboard** with motion that respects the reduced-motion setting.
 - **Per-client rate limiting** and an optional JWT scaffold (off by default).
+
+---
+
+## Architecture
+
+```
+ Browser
+   │
+   ▼
+┌──────────────────────────────┐   HTTP/JSON, /api/v1
+│ Next.js dashboard  (web/)    │ ───────────────────────┐
+│ port 3000                    │                        │
+└──────────────────────────────┘                        ▼
+                                          ┌──────────────────────────────┐
+  Streamlit UI (app_v2.py, legacy, 8501)  │ FastAPI  (api.py, rora_api/) │
+                                          │ port 8000                    │
+                                          └──────┬──────────┬────────────┘
+                                                 │          │
+                     ┌───────────────────────────┘          └──────────────────┐
+                     ▼                                                         ▼
+          ┌────────────────────────┐                             ┌────────────────────────┐
+          │ agent.py               │                             │ utils.py  (SQL guard)  │
+          │ router, schema pruning,│                             │ single SELECT only,    │
+          │ retries, saved answers │                             │ table allowlist,       │
+          └──────────┬─────────────┘                             │ LIMIT injection        │
+                     ▼                                           └──────────┬─────────────┘
+          ┌────────────────────────┐                                         ▼
+          │ LangChain prompt       │                             ┌────────────────────────┐
+          │ → ChatOllama           │                             │ db/  (SQLAlchemy)      │
+          │ → Ollama (local model) │                             │ SQLite, or PostgreSQL  │
+          └────────────────────────┘                             │ via DB_URI             │
+                                                                 └────────────────────────┘
+```
+
+**Request flow for one question:**
+
+1. The dashboard sends the question to `POST /api/v1/query`.
+2. The API validates the input with Pydantic (non-empty, length-limited). In demo mode, a question about data the demo does not have is rejected with a 422 before any model call.
+3. The router labels the question's intent. The schema is pruned to the tables the question names (demo mode uses its fixed grades columns instead).
+4. If a saved demo answer or a cached answer exists for the question, its SQL is used and the model is skipped. Otherwise the LangChain chain asks the local model for SQL.
+5. The guard checks the SQL: one read-only `SELECT`, only tables in the live schema, and (in demo mode) a filter on any subject the question names. A failed check sends the SQL back to the model with the reason, up to three attempts.
+6. A `LIMIT` is added if the query has none. The query runs against the database, and the rows come back with telemetry and any suggested actions. Model-generated SQL that ran successfully is cached.
+
+`agent.py` contains the logic for steps 2 to 4, `utils.py` for step 5, and `rora_api/v1/routes.py` for the pipeline as a whole. The detailed design is in [ARCHITECTURE_v2.md](ARCHITECTURE_v2.md).
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Dashboard | Next.js 14 (App Router), React 18, TypeScript (strict), Tailwind CSS 3, Framer Motion 11, TanStack React Query 5 |
+| Tests (frontend) | Vitest, Testing Library, jsdom |
+| API | FastAPI 0.109, Uvicorn, Pydantic 2.9 |
+| AI orchestration | LangChain 0.3 (`langchain-core`, `langchain-ollama`) |
+| Local model | Ollama, default `llama3.1:8b` |
+| SQL safety | sqlglot (AST parsing), a table allowlist from the live schema |
+| Database | SQLAlchemy 2.0, Alembic migrations; SQLite by default, PostgreSQL via `DB_URI` |
+| Legacy UI | Streamlit 1.31 |
+| Containers | Docker, Docker Compose |
+| CI | GitHub Actions (backend tests on Python 3.11 and 3.12, flake8 lint) |
 
 ---
 
@@ -127,6 +204,24 @@ make ui        # Streamlit UI (legacy)
 make test      # backend test suite
 make docker    # docker compose up --build
 ```
+
+---
+
+## Security
+
+| Protection | How it works |
+|---|---|
+| Read-only queries | Only `SELECT` statements are allowed, including `WITH` and `UNION` of selects. Multiple statements, SQL comments, and any write or DDL statement are rejected |
+| Table allowlist | A query may only reference tables in the live schema. This blocks reads from tables the model was not shown, such as a UNION into another table |
+| Subject check (demo) | A subject named in the question must appear in the SQL, so an answer cannot silently cover the wrong subject |
+| Row limit | `LIMIT 200` is added when a query has none, and any larger `LIMIT` is capped at 1000 |
+| Input validation | Questions are validated by Pydantic and length-limited (`MAX_QUERY_LENGTH`) |
+| Error handling | Errors use one envelope. SQL dumps and stack traces are kept out of messages |
+| Rate limiting | Per-client limit (`RATE_LIMIT_PER_MIN`), with a `Retry-After` header on 429 |
+| Authentication | JWT scaffold with scopes, off by default (`AUTH_ENABLED`). Not production-reviewed |
+| Local processing | The model runs locally, so questions and data stay on your machine |
+
+Read-only at the database level is the stronger guarantee. The guard parses SQL, so for real data, connect with a database user that only has `SELECT` on the tables you expose. See [docs/DEMO_AND_REAL_DATA.md](docs/DEMO_AND_REAL_DATA.md).
 
 ---
 
@@ -245,6 +340,22 @@ curl -X POST http://localhost:8000/api/v1/query \
 The response has these fields: `question`, `sql_query`, `result` (a Python-style list of row tuples as text), `timestamp`, `success`, `execution_time`, `request_id`, `telemetry` (intent, tables, safety verdict, attempts, `source` = `example` | `cache` | `model`, and timings in milliseconds), and `actions`.
 
 Errors use one envelope: `{"error": {"code", "message", "details", "requestId", "timestamp"}}`. Codes you will see include `VALIDATION_ERROR` (422, for example a question outside the demo's data), `UNSAFE_SQL` / `BAD_REQUEST` (400), `RATE_LIMITED` (429, with a `Retry-After` header), and `DB_ERROR` (500).
+
+---
+
+## Example questions
+
+Demo mode (student grades):
+
+```
+Average score per subject
+Top 3 students in Math
+Who scored below 70?
+How many students got an A?
+Which students have a grade of B?
+```
+
+The first four have saved answers, so they respond without a model call. Other questions go to the model.
 
 ---
 
