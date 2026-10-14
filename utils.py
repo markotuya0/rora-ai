@@ -126,3 +126,14 @@ def log_query(question: str, sql: str, success: bool):
     """Log query execution for monitoring."""
     status = "SUCCESS" if success else "FAILED"
     logger.info(f"{status} | Question: {question} | SQL: {sql}")
+
+
+_CREATE_TABLE_RE = re.compile(r'CREATE\s+TABLE\s+(?:IF NOT EXISTS\s+)?"?(\w+)"?', re.IGNORECASE)
+
+
+def tables_from_schema(schema: str) -> set:
+    """Table names from get_table_info() output (sqlite CREATE TABLE or postgres 'table.column (type)')."""
+    names = set(_CREATE_TABLE_RE.findall(schema))
+    names |= set(re.findall(r"^(\w+)\s*\(", schema, re.MULTILINE))  # "grades(id, name)" prompt format
+    names |= {line.split(".", 1)[0].strip() for line in schema.splitlines() if "." in line and " (" in line}
+    return {n.lower() for n in names if n}

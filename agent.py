@@ -7,6 +7,7 @@ import re
 
 KNOWN_COLUMNS = ["id", "name", "subject", "score", "grade"]
 KNOWN_TABLES = ["grades"]
+KNOWN_SUBJECTS = ["Math", "History", "Science"]
 
 MAX_RETRIES = 2  # retries after initial attempt => up to 3 total passes
 
@@ -15,6 +16,20 @@ _RANK = re.compile(r"\b(top|highest|lowest|best|worst|order by|rank|first|last)\
 _META = re.compile(r"\b(schema|tables?|columns?|describe)\b", re.I)
 _JOIN = re.compile(r"\b(join|combine|together|across|both)\b", re.I)
 _TREND = re.compile(r"\b(trend|over time|by subject|group by|per )\b", re.I)
+_OUT_OF_DOMAIN = re.compile(
+    r"\b(customers?|churn(?:ed|s)?|revenue|orders?|products?|invoices?|employees?|sales|subscriptions?|users?|transactions?|payments?)\b",
+    re.I,
+)
+_IN_DOMAIN = re.compile(
+    r"\b(students?|names?|subjects?|math|history|science|scores?|grades?|marks?|class(?:es)?|" + "|".join(KNOWN_COLUMNS) + r")\b",
+    re.I,
+)
+
+
+def is_in_scope(question: str) -> bool:
+    """Fail-open domain check: reject only when the question is about data this demo does not have."""
+    q = question or ""
+    return not (_OUT_OF_DOMAIN.search(q) and not _IN_DOMAIN.search(q))
 
 
 def route_intent(question: str) -> str:
@@ -82,3 +97,65 @@ def build_retry_input(question: str, pruned_schema: str, prior_sql: str, error: 
             f"Return ONLY a corrected SELECT query."
         ),
     }
+
+
+def missing_subject_filters(question: str, sql: str) -> list:
+    """Subjects the question names that the SQL never mentions (deterministic, no LLM call)."""
+    q = (question or "").lower()
+    s = (sql or "").lower()
+    return [subj for subj in KNOWN_SUBJECTS if re.search(rf"\b{subj.lower()}\b", q) and subj.lower() not in s]
+
+
+DEMO_EXAMPLES = [
+    "Average score per subject",
+    "Top 3 students in Math",
+    "Who scored below 70?",
+    "How many students got an A?",
+]
+
+
+def prune_live_schema(schema: str, question: str, tables) -> dict:
+    """Real-data pruning: keep only the tables the question names; fall back to the full schema.
+
+    Works on sqlite CREATE TABLE blocks or postgres 'table.column (type)' lines.
+    """
+    q = (question or "").lower()
+    names = sorted({t.lower() for t in tables})
+    mentioned = {t for t in names if re.search(rf"\b{re.escape(t)}\b", q)}
+    pruned = schema
+    if mentioned:
+        if "CREATE" in schema.upper():
+            chunks = [c for c in re.split(r"(?=CREATE\s+TABLE)", schema, flags=re.IGNORECASE) if c.strip()]
+            kept = [c for c in chunks if any(re.search(rf"\b{re.escape(t)}\b", c.lower()) for t in mentioned)]
+            pruned = "\n".join(c.strip() for c in kept) or schema
+        else:
+            kept = [ln for ln in schema.splitlines() if ln.split(".", 1)[0].strip().lower() in mentioned]
+            pruned = "\n".join(kept) or schema
+    full_est = max(1, len(schema or "") // 4)
+    pruned_est = max(1, len(pruned) // 4)
+    return {
+        "pruned_schema": pruned,
+        "tables_kept": sorted(mentioned) or names,
+        "columns_kept": [],
+        "tokens_full_est": full_est,
+        "tokens_pruned_est": pruned_est,
+        "reduction_pct": round(100 * (1 - pruned_est / full_est), 1),
+    }
+
+
+def normalize_question(question: str) -> str:
+    """Lowercase, drop punctuation, collapse spaces: 'Who scored below 70?' -> 'who scored below 70'."""
+    return " ".join(re.sub(r"[^a-z0-9 ]+", " ", (question or "").lower()).split())
+
+
+DEMO_SAVED_SQL = {
+    normalize_question("Average score per subject"): "SELECT subject, AVG(score) FROM grades GROUP BY subject",
+    normalize_question("Top 3 students in Math"): "SELECT name, score FROM grades WHERE subject = 'Math' ORDER BY score DESC LIMIT 3",
+    normalize_question("Who scored below 70?"): "SELECT name, subject, score FROM grades WHERE score < 70",
+    normalize_question("How many students got an A?"): "SELECT COUNT(*) FROM grades WHERE grade = 'A'",
+}
+
+
+def saved_sql(question: str):
+    """SQL for a known demo question, or None. The caller still runs it through the safety guard."""
+    return DEMO_SAVED_SQL.get(normalize_question(question))
