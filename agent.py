@@ -82,6 +82,7 @@ def prune_schema(schema: str, question: str, intent: str) -> dict:
 def trim_error(err: Exception | str, max_len: int = 300) -> str:
     """Trim DB/LLM errors for retry feedback (no secrets, no traceback)."""
     msg = str(err) if isinstance(err, Exception) else (err or "")
+    msg = msg.split("[SQL:")[0]  # SQLAlchemy appends the full statement; keep it out of user-facing errors
     msg = re.sub(r"(password|secret|token|api[_-]?key)\s*=\s*\S+", r"\1=***", msg, flags=re.I)
     msg = " ".join(msg.split())
     return msg[:max_len]

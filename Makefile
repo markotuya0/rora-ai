@@ -30,7 +30,7 @@ ui:
 	streamlit run app_v2.py
 
 test:
-	python -m pytest test_utils.py test_agent.py test_core.py test_ops.py eval/test_regression_20.py -v
+	python -m pytest test_utils.py test_agent.py test_core.py test_db.py test_ops.py test_api.py eval/test_regression_20.py -v
 
 benchmark:
 	python eval/benchmark_20.py --iterations 5

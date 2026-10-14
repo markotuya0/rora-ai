@@ -61,6 +61,10 @@ class TestAgent(unittest.TestCase):
         p = prune_schema("grades(id, name, subject, score, grade)", "hello", "filter")
         self.assertTrue(len(p["columns_kept"]) >= 1)
 
+    def test_trim_error_drops_sql_dump(self):
+        err = "(sqlite3.OperationalError) near \"group\": syntax error\n[SQL: SELECT * FROM grades GROUP]"
+        self.assertEqual(trim_error(err), '(sqlite3.OperationalError) near "group": syntax error')
+
     def test_trim_error_truncates_and_redacts(self):
         long_err = "x" * 500
         self.assertLessEqual(len(trim_error(long_err)), 300)
