@@ -103,7 +103,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Pull the local LLM
-ollama pull qwen2.5:0.5b
+ollama pull llama3.2:3b
 
 # Initialise database
 python create_db.py
@@ -126,6 +126,11 @@ make docker   # Start with Docker
 ```
 
 ---
+
+## Using your own data
+
+The demo answers from bundled student grades. To query your own database, set `DEMO_MODE=false` and `DB_URI`.
+See [docs/DEMO_AND_REAL_DATA.md](docs/DEMO_AND_REAL_DATA.md) for setup, the read-only user advice, and what the guided view shows.
 
 ## API Reference
 
@@ -261,13 +266,16 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for full cloud deployment instructions.
 - [x] Docker + Docker Compose
 - [x] GitHub Actions CI/CD
 - [x] Performance benchmarking
-- [ ] PostgreSQL support
+- [x] Demo mode flag and real-data mode (`DEMO_MODE=false`, see [docs/DEMO_AND_REAL_DATA.md](docs/DEMO_AND_REAL_DATA.md))
+- [x] Guided answer view (step-by-step explanation of each query)
+- [x] Next.js dashboard with keyboard shortcuts and query export
+- [x] Rate limiting (in-memory, per client)
+- [~] JWT authentication (scaffold, off by default: set `AUTH_ENABLED=true`)
+- [ ] PostgreSQL support (`DB_URI` is wired; not yet verified against a live server)
 - [ ] Redis caching layer
-- [ ] JWT authentication
-- [ ] Rate limiting
 - [ ] Multi-database support (MySQL, PostgreSQL, MSSQL)
 - [ ] Data visualisation charts
-- [ ] Query result export (CSV, JSON)
+- [~] Query result export (CSV in the dashboard; JSON not yet)
 - [ ] LangSmith observability integration
 
 ---
