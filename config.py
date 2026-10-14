@@ -15,7 +15,7 @@ DB_URI = os.getenv("DB_URI") or f"sqlite:///{DB_PATH}"
 DEMO_MODE = os.getenv("DEMO_MODE", "true").lower() == "true"
 
 # LLM Configuration
-LLM_MODEL = os.getenv("LLM_MODEL", "llama3.2:3b")
+LLM_MODEL = os.getenv("LLM_MODEL", "llama3.1:8b")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
 LLM_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 

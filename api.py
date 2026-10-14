@@ -14,7 +14,7 @@ from langchain_core.output_parsers import StrOutputParser
 from db.client import DBClient
 
 from config import (
-    DB_URI, LLM_MODEL, LLM_TEMPERATURE, PROJECT_NAME, 
+    DB_URI, LLM_MODEL, LLM_BASE_URL, LLM_TEMPERATURE, PROJECT_NAME, 
     VERSION, DESCRIPTION, ALLOWED_ORIGINS, MAX_QUERY_LENGTH
 )
 from utils import clean_sql, is_safe_query, validate_sql, ensure_limit, logger, new_request_id
@@ -60,7 +60,7 @@ app.add_middleware(
 
 # Initialize
 db = DBClient()
-llm = ChatOllama(model=LLM_MODEL, temperature=LLM_TEMPERATURE, num_predict=256, num_ctx=2048, keep_alive="30m")
+llm = ChatOllama(model=LLM_MODEL, base_url=LLM_BASE_URL, temperature=LLM_TEMPERATURE, num_predict=256, num_ctx=2048, keep_alive="30m")
 
 prompt = ChatPromptTemplate.from_template("""
 You are a SQL expert. Return only one SQLite SELECT statement. No explanation, no markdown.

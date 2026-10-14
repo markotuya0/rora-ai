@@ -74,4 +74,4 @@ What the app does to reduce this:
 
 The guided view says which path an answer took: a saved example, a reused answer, or a model call.
 
-To choose a model, set `LLM_MODEL` to one you have pulled with `ollama pull`. The default is `llama3.2:3b`, which is about twice as fast as the 8B models. Smaller models can make more mistakes, for example dropping a column from a grouped answer, so check the answers on your own data.
+To choose a model, set `LLM_MODEL` to one you have pulled with `ollama pull`. The default is `llama3.1:8b`. A smaller model such as `llama3.2:3b` is faster but was less reliable in testing: it failed a plain filter question with SQL syntax errors and dropped a column from a grouped answer. Check the answers on your own data before you rely on either model.

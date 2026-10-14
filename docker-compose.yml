@@ -9,12 +9,15 @@ services:
     environment:
       - API_HOST=0.0.0.0
       - API_PORT=8000
-      - LLM_MODEL=llama3.2:3b
+      - LLM_MODEL=llama3.1:8b
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - DB_URI=postgresql://rora:rora@db:5432/rora
       - ALLOWED_ORIGINS=http://localhost:3000
     command: >
       sh -c "alembic upgrade head &&
              uvicorn api:app --host 0.0.0.0 --port 8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

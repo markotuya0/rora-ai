@@ -70,7 +70,7 @@ docker build -t rora-ai:latest .
 
 # Run API only
 docker run -d -p 8000:8000 \
-  -e LLM_MODEL=llama3.2:3b \
+  -e LLM_MODEL=llama3.1:8b \
   --name rora-api \
   rora-ai:latest
 
@@ -125,7 +125,7 @@ sudo docker-compose up -d
 
 ```bash
 export DB_PATH=/data/production.db
-export LLM_MODEL=llama3.2:3b
+export LLM_MODEL=llama3.1:8b
 export API_HOST=0.0.0.0
 export API_PORT=8000
 export ALLOWED_ORIGINS=https://yourdomain.com
@@ -151,7 +151,7 @@ gcloud run deploy rora-ai \
   --region us-central1 \
   --allow-unauthenticated \
   --port 8000 \
-  --set-env-vars LLM_MODEL=llama3.2:3b
+  --set-env-vars LLM_MODEL=llama3.1:8b
 ```
 
 #### GKE (Kubernetes)
@@ -179,7 +179,7 @@ spec:
         - containerPort: 8000
         env:
         - name: LLM_MODEL
-          value: "llama3.2:3b"
+          value: "llama3.1:8b"
         - name: API_HOST
           value: "0.0.0.0"
 ---
@@ -230,7 +230,7 @@ az container create \
   --dns-name-label rora-ai \
   --ports 8000 \
   --environment-variables \
-    LLM_MODEL=llama3.2:3b \
+    LLM_MODEL=llama3.1:8b \
     API_HOST=0.0.0.0
 ```
 
@@ -253,7 +253,7 @@ heroku stack:set container
 git push heroku main
 
 # Set environment variables
-heroku config:set LLM_MODEL=llama3.2:3b
+heroku config:set LLM_MODEL=llama3.1:8b
 heroku config:set API_HOST=0.0.0.0
 
 # Open app
@@ -277,7 +277,7 @@ run:
 3. Select your repository
 4. Railway auto-detects Dockerfile
 5. Add environment variables:
-   - `LLM_MODEL=llama3.2:3b`
+   - `LLM_MODEL=llama3.1:8b`
    - `API_HOST=0.0.0.0`
 6. Deploy!
 
@@ -311,7 +311,7 @@ DB_URI=
 DB_PATH=production.db
 
 # LLM
-LLM_MODEL=llama3.2:3b
+LLM_MODEL=llama3.1:8b
 LLM_TEMPERATURE=0
 OLLAMA_BASE_URL=http://localhost:11434
 
@@ -452,7 +452,7 @@ sudo certbot --nginx -d yourdomain.com
 ollama list
 
 # Pull model
-ollama pull llama3.2:3b
+ollama pull llama3.1:8b
 ```
 
 **Port already in use:**
