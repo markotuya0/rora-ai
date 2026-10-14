@@ -12,6 +12,7 @@ langchain-core==0.1.23
 
 # Database
 sqlalchemy==2.0.25
+sqlglot==30.22.0
 
 # HTTP
 requests==2.31.0
