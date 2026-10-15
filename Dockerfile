@@ -23,8 +23,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create database (sqlite dev fallback) and run migrations
-RUN python create_db.py && alembic upgrade head
+# Run migrations first, then seed the demo data. create_db.py is idempotent (IF NOT EXISTS / OR IGNORE),
+# so it can run after the migration has created the grades table.
+RUN alembic upgrade head && python create_db.py
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && \
