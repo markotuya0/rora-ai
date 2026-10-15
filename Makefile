@@ -30,11 +30,16 @@ ui:
 	streamlit run app_v2.py
 
 test:
-	python test_utils.py
-	python test_api.py
+	python -m pytest test_utils.py test_agent.py test_core.py test_db.py test_ops.py test_api.py eval/test_regression_20.py -v
 
 benchmark:
-	python benchmark.py
+	python eval/benchmark_20.py --iterations 5
+
+benchmark-baseline:
+	python eval/benchmark_20.py --iterations 5 --save
+
+benchmark-check:
+	python eval/benchmark_20.py --iterations 5 --baseline eval/benchmarks.jsonl --check
 
 docker:
 	docker-compose up --build

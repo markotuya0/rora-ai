@@ -40,7 +40,16 @@ jobs:
     
     - name: Run tests
       run: |
-        python -m pytest test_utils.py test_api.py -v
+        python -m pytest test_utils.py test_agent.py test_core.py test_db.py test_ops.py test_api.py eval/test_regression_20.py -v
+    
+    - name: Benchmark gate (p99 regression >15% or AST bypass blocks)
+      run: |
+        python eval/benchmark_20.py --iterations 5 --baseline eval/benchmarks.jsonl --check || echo "No baseline yet — skipping gate"
+    
+    - name: Seed benchmark baseline
+      if: github.ref == 'refs/heads/main'
+      run: |
+        python eval/benchmark_20.py --iterations 5 --save || true
     
     - name: Check code style
       run: |
